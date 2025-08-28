@@ -1,0 +1,10 @@
+# Docker context hygiene
+**/__pycache__
+**/*.pyc
+*.log
+.env
+.vscode
+.idea
+.git
+.gitignore
+data
