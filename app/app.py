@@ -4,8 +4,8 @@ from flask import Flask, jsonify, request, g
 from pathlib import Path
 from datetime import datetime
 
-DB_PATH = os.environ.get("DB_PATH", "/data/orders.db")
-Path("/data").mkdir(parents=True, exist_ok=True)
+DB_PATH = os.environ.get("DB_PATH", "./data/orders.db")
+Path("./data").mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
 
@@ -83,3 +83,6 @@ def list_orders():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)
+
+
+
