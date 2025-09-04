@@ -1,0 +1,22 @@
+# ---- builder ----
+FROM python:3.11-slim AS builder
+WORKDIR /wheels
+RUN pip install --upgrade pip wheel
+COPY app/requirements.txt .
+RUN pip wheel --no-cache-dir -r requirements.txt
+
+# ---- runtime ----
+FROM python:3.11-slim
+WORKDIR /app
+# minimal tools for healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /wheels /wheels
+RUN pip install --no-cache-dir --no-index --find-links=/wheels -r /wheels/requirements.txt
+
+COPY app /app
+
+# Print the UID and GID
+RUN echo "User: $(whoami), UID: $(id -u), GID: $(id -g)"
+
+
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "app:app"]
