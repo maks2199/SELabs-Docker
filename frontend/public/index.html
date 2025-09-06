@@ -61,7 +61,7 @@
     <script>
       async function loadOrders() {
         const status = document.getElementById("status").value;
-        let url = "http://backend:8080/orders";
+        let url = "{{BACKEND_URL}}/orders";
         if (status) {
           url += "?status=" + encodeURIComponent(status);
         }
