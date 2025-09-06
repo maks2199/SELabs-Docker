@@ -6,10 +6,18 @@ The frontend application now supports the following environment variables:
 
 - `PORT`: Port for the frontend server (default: 3000)
 
-## Backend Configuration
+## Backend Configuration (for internal proxy)
 
 - `BACKEND_HOST`: Backend hostname or IP address (default: "backend")
 - `BACKEND_PORT`: Backend port (default: "8080")
+
+## Proxy Configuration
+
+The frontend now acts as a proxy for the backend API. All requests to `/api/*` are automatically forwarded to the backend service. This means:
+
+- Frontend calls `/api/orders` → Backend receives `/orders`
+- No CORS issues since requests are same-origin
+- Backend doesn't need to be exposed externally
 
 ## Usage
 
