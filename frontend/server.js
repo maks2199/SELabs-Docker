@@ -10,9 +10,6 @@ const BACKEND_HOST = process.env.BACKEND_HOST || "backend";
 const BACKEND_PORT = process.env.BACKEND_PORT || "8080";
 const BACKEND_URL = `http://${BACKEND_HOST}:${BACKEND_PORT}`;
 
-// Serve static files from /public
-app.use(express.static(path.join(__dirname, "public")));
-
 // Serve the main HTML file with environment variables injected
 app.get("/", (req, res) => {
   const htmlPath = path.join(__dirname, "public", "index.html");
@@ -23,6 +20,13 @@ app.get("/", (req, res) => {
 
   res.send(html);
 });
+
+// Serve static files from /public (except index.html which is handled above)
+app.use(
+  express.static(path.join(__dirname, "public"), {
+    index: false, // Don't serve index.html automatically
+  })
+);
 
 app.get("/health", (req, res) => {
   res.json({ status: "frontend-ok" });
