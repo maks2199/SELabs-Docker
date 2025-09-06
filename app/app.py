@@ -1,6 +1,7 @@
 import os
 import sqlite3
 from flask import Flask, jsonify, request, g
+from flask_cors import CORS
 from pathlib import Path
 from datetime import datetime
 
@@ -8,6 +9,8 @@ DB_PATH = os.environ.get("DB_PATH", "./data/orders.db")
 Path("./data").mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
+
 
 def get_db():
     db = getattr(g, "_db", None)
@@ -19,6 +22,7 @@ def get_db():
             with app.app_context():
                 init_db(db)
     return db
+
 
 def init_db(db):
     cur = db.cursor()
@@ -46,11 +50,13 @@ def init_db(db):
         cur.executemany("INSERT INTO orders VALUES (?,?,?,?,?,?,?)", rows)
         db.commit()
 
+
 @app.teardown_appcontext
 def close_db(exception):
     db = getattr(g, "_db", None)
     if db is not None:
         db.close()
+
 
 @app.get("/health")
 def health():
@@ -63,9 +69,11 @@ def health():
     except Exception as e:
         return jsonify(status="degraded", error=str(e)), 503
 
+
 @app.get("/")
 def root():
     return jsonify(service="orders-api", endpoints=["/health", "/orders"]), 200
+
 
 @app.get("/orders")
 def list_orders():
@@ -75,14 +83,17 @@ def list_orders():
     db = get_db()
     cur = db.cursor()
     if status:
-        cur.execute("SELECT * FROM orders WHERE status=? ORDER BY order_id LIMIT ? OFFSET ?", (status, limit, offset))
+        cur.execute(
+            "SELECT * FROM orders WHERE status=? ORDER BY order_id LIMIT ? OFFSET ?",
+            (status, limit, offset),
+        )
     else:
-        cur.execute("SELECT * FROM orders ORDER BY order_id LIMIT ? OFFSET ?", (limit, offset))
+        cur.execute(
+            "SELECT * FROM orders ORDER BY order_id LIMIT ? OFFSET ?", (limit, offset)
+        )
     rows = [dict(r) for r in cur.fetchall()]
     return jsonify(rows), 200
 
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)
-
-
-
