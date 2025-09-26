@@ -1,9 +1,15 @@
 // const apiBase = 'http://localhost:3000';
-const host = process.env.HOST;
-const port = process.env.PORT;
-const url = `http://${host}:${port}`;
+// const host = process.env.HOST;
+// const port = process.env.PORT;
+// const url = `http://${host}:${port}`;
+let url;
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  // Load config.json
+  const configResp = await fetch("/config.json");
+  const config = await configResp.json();
+  url = `http://${config.host}:${config.port}`;
+
   const writeForm = document.getElementById("write-form");
   const refreshBtn = document.getElementById("refresh-btn");
   const fileList = document.getElementById("file-list");
