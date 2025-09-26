@@ -1,0 +1,11 @@
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "81:80"
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_PASSWORD: example
+  redis:
+    image: redis:alpine
