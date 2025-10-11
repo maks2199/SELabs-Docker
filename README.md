@@ -1,5 +1,7 @@
 # Docker Lab
 
+Лабораторная работа "Docker для системных аналитиков".
+
 ## Frontend
 
 ```Dockerfile
