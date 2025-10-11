@@ -1,45 +1,9 @@
-networks:
-  orders-net:
-    driver: bridge
-
-volumes:
-  appdata: {}
-
 services:
   orders-api:
     build:
       context: .
       dockerfile: Dockerfile
     image: docker-lab/orders-api:latest
-    container_name: orders-api
-    environment:
-      DB_PATH: /data/orders.db
-    volumes:
-      - appdata:/data
+    container_name: backend-orders-api
     ports:
-      - "8080:8080"
-    networks:
-      - orders-net
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  frontend:
-    image: orders-frontend
-    container_name: frontend
-    ports:
-      - "3000:3000"
-    environment:
-      BACKEND_HOST: orders-api
-      BACKEND_PORT: 8080
-    networks:
-      - orders-net
-    restart: unless-stopped
-    read_only: true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
+      - "8081:8080"
