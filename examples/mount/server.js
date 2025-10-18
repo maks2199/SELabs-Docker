@@ -1,9 +1,19 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
+const cors = require("cors");
 
 const app = express();
 const PORT = 3000;
+
+app.use(cors());
+
+// Set Access-Control-Allow-Headers for all routes
+
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  next();
+});
 
 // Serve static files from the "public" directory
 app.use(express.static(path.join(__dirname, "public")));
