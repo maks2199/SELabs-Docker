@@ -15,6 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const fileList = document.getElementById("file-list");
   const readForm = document.getElementById("read-form");
   const fileContent = document.getElementById("file-content");
+  //
 
   // Write file
   writeForm.addEventListener("submit", async (e) => {
