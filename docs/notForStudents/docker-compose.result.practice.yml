@@ -2,6 +2,9 @@ networks:
   orders-net:
     driver: bridge
 
+volumes:
+  appdata: {}
+
 services:
   orders-api:
     image: docker-lab/orders-api:latest
@@ -9,14 +12,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # ports:
-    #   - "8081:8080"
+    ports:
+      - "8081:8080"
     environment:
       DB_PATH: /data/orders.db
       DEBUG: true
     env_file: ".env"
-    networks:
-      - orders-net
 
   orders-web:
     image: orders-frontend
@@ -31,3 +32,9 @@ services:
       # BACKEND_PORT: 8080
     networks:
       - orders-net
+    # restart: unless-stopped
+    # read_only: true
+    # cap_drop:
+    #   - ALL
+    # cap_add:
+    #   - NET_BIND_SERVICE
