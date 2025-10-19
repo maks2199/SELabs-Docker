@@ -12,7 +12,6 @@
 
 1. Установите VSCode: https://code.visualstudio.com/download
 2. Установите расширение RemoteSSH: https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh
-3. Установите расширение Container tools: https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-containers
 
 🔹 Настроить VPN
 
@@ -24,6 +23,7 @@
 
 1. В левом нижнем углу VSCode нажмите на две стрелочки (Open a remote window)
 2. Выберите "Connect to Host..." → "Configure SSH Host..." → выберите файл config
+   2.1 \*Возможно файла config до этого не существовало, тогда его нужно создать.
 3. Добавьте в config:
 
 ```
@@ -100,8 +100,6 @@ docker compose up -d → система из 3 сервисов готова к 
 💬 Вопросы? Пишите в комментарии!
 
 ## Пост -4: Инструменты.
-
-vscode
 
 🐋 VSCode — редактор-швейцарский нож!
 
