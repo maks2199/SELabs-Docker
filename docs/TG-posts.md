@@ -15,9 +15,18 @@
 
 🔹 Настроить VPN
 
+На Windows/MacOS
+
 1. Установите OpenVPN Connect: https://openvpn.net/client/ → Downloads → Windows → OpenVPN Connect
-2. Откройте OpenVPN Connect → File → Import → From local file → выберите **ch_vpn.ovpn** (файл приложил ниже)
+2. Откройте OpenVPN Connect → File → Import → From local file → выберите **ch_vpn_windows.ovpn** (файл приложил ниже)
 3. Подключитесь (Connect → введите логин/пароль при необходимости). Разрешите доступ в брандмауэре Windows (Private и Public).
+
+На Linux
+
+```sh
+sudo apt install openvpn resolvconf
+sudo openvpn --config ./ch_vpn_linux.ovpn
+```
 
 🔹 Настроить подключение к ВМ
 
