@@ -10,7 +10,6 @@ services:
     container_name: backend-orders-api
     build:
       context: src/backend
-    env_file: ".env"
     networks:
       - orders-net
     volumes:

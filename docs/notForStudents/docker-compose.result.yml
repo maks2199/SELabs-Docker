@@ -2,21 +2,20 @@ networks:
   orders-net:
     driver: bridge
 
-volumes:
-  appdata: {}
-
 services:
   orders-api:
     image: docker-lab/orders-api:latest
     container_name: backend-orders-api
     build:
       context: .
-    ports:
-      - "8081:8080"
+    # ports:
+    #   - "8081:8080"
     environment:
-      DB_PATH: /data/orders.db
+      SOME_ENV_VAR: "some value"
       DEBUG: true
     env_file: ".env"
+    networks:
+      - orders-net
 
   orders-web:
     image: orders-frontend

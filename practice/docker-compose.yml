@@ -1,27 +1,3 @@
-networks:
-  orders-net:
-
-volumes:
-  appdata: {}
-
 services:
-  orders-api:
-    image: docker-lab/orders-api:latest
-    container_name: backend-orders-api
-    build:
-      context: src/backend
-    networks:
-      - orders-net
-    volumes:
-      - appdata:/data/orders.db
-
-  orders-web:
-    image: orders-frontend
-    container_name: frontend-orders
-    build:
-      context: src/frontend
-    ports:
-      - "3001:3000"
-    env_file: ".env"
-    networks:
-      - orders-net
+  hello-world:
+    image: hello-world
