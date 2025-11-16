@@ -1,6 +1,12 @@
-# Docker Lab
+# Методические указания к лабораторной работе "Docker для системных аналитиков"
 
-Лабораторная работа "Docker для системных аналитиков".
+## Шаги выполнения
+
+### Шаг 0. Подготовка
+
+Настроить подключение к ВМ, см. https://github.com/AndreyChuyan/se_labs
+
+### Шаг 1. Сборка Docker-образа
 
 ## Frontend
 
@@ -15,20 +21,3 @@ COPY . .
 EXPOSE 3000
 CMD ["node", "server.js"]
 ```
-
-## Подключение к ВМ
-
-### 1. Настроить VPN
-
-1. Установка
-
-OpenVPN Connect (рекомендуется): с сайта [openvpn.net](https://openvpn.net/client/) → Downloads → Windows → OpenVPN Connect.
-
-2. Запуск
-
-Откройте OpenVPN Connect → File → Import → From local file → выберите .ovpn.
-
-3. Подключитесь
-
-- Нажмите Connect → введите логин/пароль (если требуется).
-- Разрешите доступ в брандмауэре Windows для OpenVPN (галочки и для Private, и для Public сетей).
