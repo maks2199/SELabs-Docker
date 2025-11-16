@@ -2,7 +2,7 @@
 
 ## 1. Монтирование директорий
 
-### В Dockerfile / Docker Compose
+### В docker-compose.yml
 
 ```yaml
 services:
