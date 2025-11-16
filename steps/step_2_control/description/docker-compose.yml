@@ -3,7 +3,7 @@ services:
     image: docker-lab/orders-api:latest
     container_name: backend-orders-api
     build:
-      context: src/backend
+      context: ./backend
     ports:
       - "8081:8080"
     environment:

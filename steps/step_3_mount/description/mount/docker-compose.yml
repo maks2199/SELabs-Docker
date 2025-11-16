@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+  app:
+    image: mount-example:latest
+    container_name: mount-example
+    build: .
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./data:/app/data
+      # - my-volume:/app/data
+
+volumes:
+  my-volume:

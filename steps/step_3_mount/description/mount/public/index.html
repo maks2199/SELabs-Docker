@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Docker Mount Demo</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Docker Mount Demo</h1>
+      <section>
+        <h2>Write a File</h2>
+        <form id="write-form">
+          <label for="filename">Filename:</label>
+          <input type="text" id="filename" required />
+          <label for="content">Content:</label>
+          <textarea id="content" rows="4" required></textarea>
+          <button type="submit">Save File</button>
+        </form>
+      </section>
+
+      <section>
+        <h2>File List</h2>
+        <button id="refresh-btn">Refresh List</button>
+        <ul id="file-list"></ul>
+      </section>
+
+      <section>
+        <h2>Read a File</h2>
+        <form id="read-form">
+          <label for="read-filename">Filename:</label>
+          <input type="text" id="read-filename" required />
+          <button type="submit">Read File</button>
+        </form>
+        <pre id="file-content"></pre>
+      </section>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>
