@@ -1,6 +1,0 @@
-services:
-  orders-api:
-    image: docker-lab/orders-api:latest
-    container_name: backend-orders-api
-    build:
-      context: .
