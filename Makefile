@@ -11,7 +11,7 @@
 #
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: build status run run-more clean compose-up compose-down logs monitor help
+.PHONY: build status run run-more clean compose-up compose-down logs monitor example-no-mount example-mount example-volume example-down net-no-network net-ports net-network net-down help
 .DEFAULT_GOAL := help
 
 IMAGE_NAME  := docker-lab/orders-api
@@ -22,17 +22,72 @@ COMPOSE_DIR    := steps/step_2_control/description
 CONTAINER_2    := backend-orders-api
 BACKEND_PORT_2 := 8081
 
-GREEN  := $(shell printf '\033[0;32m')
-YELLOW := $(shell printf '\033[0;33m')
-RED    := $(shell printf '\033[0;31m')
-BOLD   := $(shell printf '\033[1m')
-NC     := $(shell printf '\033[0m')
+EXAMPLE_MOUNT_DIR  := examples/mount
+EXAMPLE_MOUNT_PORT := 3001
+EXAMPLE_MOUNT_CONT := mount-example
+
+NET_DIR        := steps/step_4_network/description
+NET_FRONT_PORT := 3001
+NET_BACK_CONT  := backend-orders-api
+NET_FRONT_CONT := frontend-orders
+NET_NAME       := orders-net
+
+GREEN   := $(shell printf '\033[0;32m')
+YELLOW  := $(shell printf '\033[0;33m')
+RED     := $(shell printf '\033[0;31m')
+MAGENTA := $(shell printf '\033[0;35m')
+BOLD    := $(shell printf '\033[1m')
+NC      := $(shell printf '\033[0m')
 
 # Блок с выполняемой командой
 define run_cmd
 	@echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"
 	@echo "$(BOLD)$(GREEN)  ▶  $(1)$(NC)"
 	@echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"
+endef
+
+# Проверка занятости порта перед запуском
+# Использование: $(call check_port,3001)
+define check_port
+	@if docker ps --format '{{.Ports}}' | grep -q ':$(1)->'; then \
+		echo "$(RED)════════════════════════════════════════════════════════$(NC)"; \
+		echo "$(RED)Порт $(1) уже занят!$(NC)"; \
+		echo "$(RED)════════════════════════════════════════════════════════$(NC)"; \
+		echo "$(YELLOW)Контейнер, занимающий порт:$(NC)"; \
+		docker ps --format "  {{.Names}}\t{{.Ports}}" | grep ':$(1)->'; \
+		echo ""; \
+		echo "$(YELLOW)Причина: предыдущий пример не был остановлен.$(NC)"; \
+		echo "$(YELLOW)Решение — остановите запущенный пример:$(NC)"; \
+		echo "$(YELLOW)   make net-down        — если запущен пример с сетями$(NC)"; \
+		echo "$(YELLOW)   make example-down    — если запущен пример с маунтом$(NC)"; \
+		echo "$(YELLOW)   make compose-down    — если запущен стек этапа 2$(NC)"; \
+		exit 1; \
+	fi
+endef
+
+# Проверка отсутствия контейнеров этапа 4 перед запуском нового шага
+# Срабатывает если контейнер существует — запущен ИЛИ остановлен
+define check_net_containers
+	@for name in $(NET_BACK_CONT) $(NET_FRONT_CONT); do \
+		if docker ps -a --format '{{.Names}}' | grep -qx "$$name"; then \
+			echo "$(RED)════════════════════════════════════════════════════════$(NC)"; \
+			echo "$(RED)Ошибка: контейнер \"$$name\" уже существует$(NC)"; \
+			echo "$(RED)════════════════════════════════════════════════════════$(NC)"; \
+			echo ""; \
+			echo "$(YELLOW)Что произошло:$(NC)"; \
+			echo "$(YELLOW)  Docker не может создать контейнер с именем \"$$name\",$(NC)"; \
+			echo "$(YELLOW)  потому что контейнер с таким именем уже есть — даже$(NC)"; \
+			echo "$(YELLOW)  если он остановлен. Имена контейнеров уникальны.$(NC)"; \
+			echo ""; \
+			echo "$(YELLOW)Причина: предыдущий шаг не был остановлен через make.$(NC)"; \
+			echo ""; \
+			echo "$(YELLOW)Решение — остановите и удалите старые контейнеры:$(NC)"; \
+			echo "$(GREEN)   make net-down$(NC)"; \
+			echo "$(YELLOW)затем повторите текущую команду.$(NC)"; \
+			echo ""; \
+			exit 1; \
+		fi; \
+	done
 endef
 
 ## ═══════════════════════════════════════════════════════════════
@@ -299,6 +354,421 @@ monitor: ## Обследовать контейнер (inspect, exec, top, stats
 	@docker stats --no-stream $(CONTAINER_2)
 
 ## ═══════════════════════════════════════════════════════════════
+## Этап 3: Монтирование
+## ═══════════════════════════════════════════════════════════════
+
+example-no-mount: ## Пример без маунта — данные пропадают при перезапуске
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Шаг 1 из 3: контейнер БЕЗ маунта$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Данные хранятся внутри контейнера. При перезапуске —$(NC)"
+	@echo "$(YELLOW)файловая система сбрасывается до образа. Данные стираются.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)docker-compose.yml:$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   version: \"3.8\"$(NC)"
+	@echo "$(YELLOW)   services:$(NC)"
+	@echo "$(YELLOW)     app:$(NC)"
+	@echo "$(YELLOW)       image: mount-example:latest$(NC)"
+	@echo "$(YELLOW)       container_name: mount-example$(NC)"
+	@echo "$(YELLOW)       build: .$(NC)"
+	@echo "$(YELLOW)       ports:$(NC)"
+	@echo "$(YELLOW)         - \"3001:3000\"$(NC)"
+	@echo "$(YELLOW)       # нет секции volumes$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Что делать после запуска:$(NC)"
+	@echo "$(YELLOW)   1. Открыть в браузере: http://<IP_вашей_ВМ>:$(EXAMPLE_MOUNT_PORT)$(NC)"
+	@echo "$(YELLOW)   2. Создать несколько файлов через интерфейс$(NC)"
+	@echo "$(YELLOW)   3. Выполнить: make example-down$(NC)"
+	@echo "$(YELLOW)   4. Снова выполнить: make example-no-mount$(NC)"
+	@echo "$(YELLOW)   5. Убедиться, что файлы исчезли$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call check_port,$(EXAMPLE_MOUNT_PORT))
+	$(call run_cmd,docker compose -f docker-compose.no-mount.yml up -d --build)
+	@cd $(EXAMPLE_MOUNT_DIR) && docker compose -f docker-compose.no-mount.yml up -d --build
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Контейнер запущен: http://<IP_вашей_ВМ>:$(EXAMPLE_MOUNT_PORT)$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Что делать:$(NC)"
+	@echo "$(YELLOW)   1. Открыть в браузере: http://<IP_вашей_ВМ>:$(EXAMPLE_MOUNT_PORT)$(NC)"
+	@echo "$(YELLOW)   2. Создать несколько файлов через интерфейс$(NC)"
+	@echo "$(YELLOW)   3. Выполнить: make example-down$(NC)"
+	@echo "$(YELLOW)   4. Снова выполнить: make example-no-mount$(NC)"
+	@echo "$(YELLOW)   5. Убедиться, что файлы исчезли$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+
+example-mount: ## Пример с bind mount — ./data на хосте ↔ /app/data в контейнере
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Шаг 2 из 3: контейнер с bind mount$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Bind mount — директория хоста монтируется прямо в контейнер.$(NC)"
+	@echo "$(YELLOW)Изменения на хосте мгновенно видны в контейнере и наоборот.$(NC)"
+	@echo "$(YELLOW)При перезапуске данные сохраняются — они на хосте.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)docker-compose.yml:$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   version: \"3.8\"$(NC)"
+	@echo "$(YELLOW)   services:$(NC)"
+	@echo "$(YELLOW)     app:$(NC)"
+	@echo "$(YELLOW)       image: mount-example:latest$(NC)"
+	@echo "$(YELLOW)       container_name: mount-example$(NC)"
+	@echo "$(YELLOW)       build: .$(NC)"
+	@echo "$(YELLOW)       ports:$(NC)"
+	@echo "$(YELLOW)         - \"3001:3000\"$(NC)"
+	@echo "$(MAGENTA)       volumes:                   # ◄ добавлено$(NC)"
+	@echo "$(MAGENTA)         - ./data:/app/data       # ◄ добавлено: хост:контейнер$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   ./data   — папка рядом с docker-compose.yml (на хосте)$(NC)"
+	@echo "$(YELLOW)   /app/data — путь внутри контейнера$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Что делать после запуска:$(NC)"
+	@echo "$(YELLOW)   1. Открыть в браузере: http://<IP_вашей_ВМ>:$(EXAMPLE_MOUNT_PORT)$(NC)"
+	@echo "$(YELLOW)   2. Создать файл через браузер$(NC)"
+	@echo "$(YELLOW)   3. Убедиться, что файл появился на хосте: ls $(EXAMPLE_MOUNT_DIR)/data/$(NC)"
+	@echo "$(YELLOW)   4. Создать файл на хосте: sudo touch $(EXAMPLE_MOUNT_DIR)/data/from-host.txt$(NC)"
+	@echo "$(YELLOW)   5. Убедиться, что файл виден в браузере (Refresh List)$(NC)"
+	@echo "$(YELLOW)   6. Перезапустить: make example-down  →  make example-mount$(NC)"
+	@echo "$(YELLOW)   7. Убедиться, что файлы сохранились$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call check_port,$(EXAMPLE_MOUNT_PORT))
+	$(call run_cmd,docker compose -f docker-compose.mount.yml up -d --build)
+	@cd $(EXAMPLE_MOUNT_DIR) && docker compose -f docker-compose.mount.yml up -d --build
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Контейнер запущен: http://<IP_вашей_ВМ>:$(EXAMPLE_MOUNT_PORT)$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Что делать:$(NC)"
+	@echo "$(YELLOW)   1. Открыть в браузере: http://<IP_вашей_ВМ>:$(EXAMPLE_MOUNT_PORT)$(NC)"
+	@echo "$(YELLOW)   2. Создать файл через браузер$(NC)"
+	@echo "$(YELLOW)   3. Убедиться, что файл появился на хосте: ls $(EXAMPLE_MOUNT_DIR)/data/$(NC)"
+	@echo "$(YELLOW)   4. Создать файл на хосте: sudo touch $(EXAMPLE_MOUNT_DIR)/data/from-host.txt$(NC)"
+	@echo "$(YELLOW)   5. Убедиться, что файл виден в браузере (Refresh List)$(NC)"
+	@echo "$(YELLOW)   6. Перезапустить: make example-down  →  make example-mount$(NC)"
+	@echo "$(YELLOW)   7. Убедиться, что файлы сохранились$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+
+example-volume: ## Пример с volume — данные управляются Docker
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Шаг 3 из 3: контейнер с volume$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Volume — Docker сам создаёт и управляет хранилищем.$(NC)"
+	@echo "$(YELLOW)Расположение на хосте: /var/lib/docker/volumes/<name>/_data$(NC)"
+	@echo "$(YELLOW)Удобно для БД — данные изолированы и управляются через Docker.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)docker-compose.yml:$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   version: \"3.8\"$(NC)"
+	@echo "$(YELLOW)   services:$(NC)"
+	@echo "$(YELLOW)     app:$(NC)"
+	@echo "$(YELLOW)       image: mount-example:latest$(NC)"
+	@echo "$(YELLOW)       container_name: mount-example$(NC)"
+	@echo "$(YELLOW)       build: .$(NC)"
+	@echo "$(YELLOW)       ports:$(NC)"
+	@echo "$(YELLOW)         - \"3001:3000\"$(NC)"
+	@echo "$(YELLOW)       volumes:$(NC)"
+	@echo "$(MAGENTA)         - my-volume:/app/data    # ◄ изменено: имя вместо пути$(NC)"
+	@echo "$(MAGENTA)                                  # ◄ (было: - ./data:/app/data)$(NC)"
+	@echo "$(MAGENTA)   volumes:                       # ◄ добавлено: объявление volume$(NC)"
+	@echo "$(MAGENTA)     my-volume:                   # ◄ добавлено$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Что делать после запуска:$(NC)"
+	@echo "$(YELLOW)   1. Открыть в браузере: http://<IP_вашей_ВМ>:$(EXAMPLE_MOUNT_PORT)$(NC)"
+	@echo "$(YELLOW)   2. Создать несколько файлов$(NC)"
+	@echo "$(YELLOW)   3. Найти volume в системе:$(NC)"
+	@echo "$(YELLOW)      docker volume ls$(NC)"
+	@echo "$(YELLOW)      docker inspect $(EXAMPLE_MOUNT_CONT)$(NC)"
+	@echo "$(YELLOW)      sudo ls /var/lib/docker/volumes/$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call check_port,$(EXAMPLE_MOUNT_PORT))
+	$(call run_cmd,docker compose -f docker-compose.volume.yml up -d --build)
+	@cd $(EXAMPLE_MOUNT_DIR) && docker compose -f docker-compose.volume.yml up -d --build
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Где Docker хранит volume:$(NC)"
+	@echo ""
+	$(call run_cmd,docker volume ls)
+	@docker volume ls
+	@echo ""
+	$(call run_cmd,docker inspect $(EXAMPLE_MOUNT_CONT) --format '{{json .Mounts}}')
+	@docker inspect $(EXAMPLE_MOUNT_CONT) --format '{{json .Mounts}}' 2>/dev/null | python3 -m json.tool 2>/dev/null || docker inspect $(EXAMPLE_MOUNT_CONT) --format '{{json .Mounts}}'
+	@echo ""
+	@echo "$(YELLOW)Поле \"Source\" — путь к volume на хосте$(NC)"
+	@echo "$(YELLOW)Поле \"Destination\" — путь внутри контейнера$(NC)"
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Контейнер запущен: http://<IP_вашей_ВМ>:$(EXAMPLE_MOUNT_PORT)$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Что делать:$(NC)"
+	@echo "$(YELLOW)   1. Открыть в браузере: http://<IP_вашей_ВМ>:$(EXAMPLE_MOUNT_PORT)$(NC)"
+	@echo "$(YELLOW)   2. Создать несколько файлов$(NC)"
+	@echo "$(YELLOW)   3. Найти volume в системе:$(NC)"
+	@echo "$(YELLOW)      docker volume ls$(NC)"
+	@echo "$(YELLOW)      docker inspect $(EXAMPLE_MOUNT_CONT)$(NC)"
+	@echo "$(YELLOW)      sudo ls /var/lib/docker/volumes/$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+
+example-down: ## Остановить пример монтирования
+	@echo "$(YELLOW)Останавливаем пример монтирования...$(NC)"
+	@echo ""
+	@MOUNT_DIR=$(CURDIR)/$(EXAMPLE_MOUNT_DIR); \
+	ACTIVE=""; \
+	for f in docker-compose.no-mount.yml docker-compose.mount.yml docker-compose.volume.yml; do \
+		if docker compose -f $$MOUNT_DIR/$$f ps -q 2>/dev/null | grep -q .; then \
+			ACTIVE=$$f; \
+			break; \
+		fi; \
+	done; \
+	if [ -n "$$ACTIVE" ]; then \
+		echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+		echo "$(BOLD)$(GREEN)  ▶  docker compose -f $$ACTIVE down$(NC)"; \
+		echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+		cd $$MOUNT_DIR && docker compose -f $$ACTIVE down; \
+	elif docker ps -q --filter name=$(EXAMPLE_MOUNT_CONT) | grep -q .; then \
+		echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+		echo "$(BOLD)$(GREEN)  ▶  docker stop $(EXAMPLE_MOUNT_CONT)$(NC)"; \
+		echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+		docker stop $(EXAMPLE_MOUNT_CONT); \
+	else \
+		echo "$(YELLOW)   Контейнер $(EXAMPLE_MOUNT_CONT) не запущен$(NC)"; \
+	fi
+
+## ═══════════════════════════════════════════════════════════════
+## Этап 4: Сети
+## ═══════════════════════════════════════════════════════════════
+
+net-no-network: ## Сети: фронт и бэк без общей сети — бэкенд недоступен
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Шаг 1 из 3: контейнеры без сети$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Фронтенд пытается достучаться до бэкенда через хост$(NC)"
+	@echo "$(YELLOW)(host.docker.internal → IP хоста). Но порт бэкенда$(NC)"
+	@echo "$(YELLOW)не опубликован — запрос уходит в никуда.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)docker-compose.yml:$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   services:$(NC)"
+	@echo "$(YELLOW)     orders-api:$(NC)"
+	@echo "$(YELLOW)       image: docker-lab/orders-api:latest$(NC)"
+	@echo "$(YELLOW)       container_name: backend-orders-api$(NC)"
+	@echo "$(YELLOW)       build:$(NC)"
+	@echo "$(YELLOW)         context: backend$(NC)"
+	@echo "$(YELLOW)       env_file: \".env\"$(NC)"
+	@echo "$(YELLOW)       # нет ports — бэкенд не доступен снаружи$(NC)"
+	@echo ""
+	@echo "$(YELLOW)     orders-web:$(NC)"
+	@echo "$(YELLOW)       image: orders-frontend$(NC)"
+	@echo "$(YELLOW)       container_name: frontend-orders$(NC)"
+	@echo "$(YELLOW)       build:$(NC)"
+	@echo "$(YELLOW)         context: frontend$(NC)"
+	@echo "$(YELLOW)       ports:$(NC)"
+	@echo "$(YELLOW)         - \"3001:3000\"$(NC)"
+	@echo "$(YELLOW)       environment:$(NC)"
+	@echo "$(YELLOW)         BACKEND_HOST: host.docker.internal$(NC)"
+	@echo "$(YELLOW)         BACKEND_PORT: \"8081\"$(NC)"
+	@echo "$(YELLOW)       extra_hosts:$(NC)"
+	@echo "$(YELLOW)         - \"host.docker.internal:host-gateway\"$(NC)"
+	@echo "$(YELLOW)       # нет networks — контейнеры изолированы$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   host.docker.internal — специальное DNS-имя,$(NC)"
+	@echo "$(YELLOW)   резолвится в IP хоста (вашей ВМ) изнутри контейнера$(NC)"
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Что делать после запуска:$(NC)"
+	@echo "$(YELLOW)   1. Открыть фронтенд: http://<IP_вашей_ВМ>:$(NET_FRONT_PORT)$(NC)"
+	@echo "$(YELLOW)   2. Попробовать выполнить любой запрос$(NC)"
+	@echo "$(YELLOW)   3. Убедиться, что приходит ошибка (бэкенд недоступен)$(NC)"
+	@echo "$(YELLOW)   4. Проверить, что бэкенд тоже не открывается: http://<IP>:8081$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call check_net_containers)
+	$(call check_port,$(NET_FRONT_PORT))
+	$(call run_cmd,docker compose -f docker-compose.no-network.yml up -d --build)
+	@cd $(NET_DIR) && docker compose -f docker-compose.no-network.yml up -d --build
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Контейнеры запущены$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Что делать:$(NC)"
+	@echo "$(YELLOW)   1. Открыть фронтенд: http://<IP_вашей_ВМ>:$(NET_FRONT_PORT)$(NC)"
+	@echo "$(YELLOW)   2. Попробовать выполнить любой запрос$(NC)"
+	@echo "$(YELLOW)   3. Убедиться, что приходит ошибка (бэкенд недоступен)$(NC)"
+	@echo "$(YELLOW)   4. Проверить, что бэкенд тоже не открывается: http://<IP>:8081$(NC)"
+	@echo "$(YELLOW)   Следующий шаг: make net-down  →  make net-ports$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+
+net-ports: ## Сети: общение через проброшенные порты — бэкенд виден снаружи
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Шаг 2 из 3: общение через проброшенный порт$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Бэкенд публикует порт 8081. Фронтенд обращается к нему$(NC)"
+	@echo "$(YELLOW)через хост (host.docker.internal:8081) — запрос идёт$(NC)"
+	@echo "$(YELLOW)наружу из контейнера, через хост, и обратно в контейнер.$(NC)"
+	@echo "$(YELLOW)Работает — но бэкенд теперь виден снаружи для всех!$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)docker-compose.yml:$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   services:$(NC)"
+	@echo "$(YELLOW)     orders-api:$(NC)"
+	@echo "$(YELLOW)       image: docker-lab/orders-api:latest$(NC)"
+	@echo "$(YELLOW)       container_name: backend-orders-api$(NC)"
+	@echo "$(YELLOW)       build:$(NC)"
+	@echo "$(YELLOW)         context: backend$(NC)"
+	@echo "$(MAGENTA)       ports:                          # ◄ добавлено$(NC)"
+	@echo "$(MAGENTA)         - \"8081:8080\"                 # ◄ бэкенд виден снаружи$(NC)"
+	@echo "$(YELLOW)       env_file: \".env\"$(NC)"
+	@echo ""
+	@echo "$(YELLOW)     orders-web:$(NC)"
+	@echo "$(YELLOW)       image: orders-frontend$(NC)"
+	@echo "$(YELLOW)       container_name: frontend-orders$(NC)"
+	@echo "$(YELLOW)       build:$(NC)"
+	@echo "$(YELLOW)         context: frontend$(NC)"
+	@echo "$(YELLOW)       ports:$(NC)"
+	@echo "$(YELLOW)         - \"3001:3000\"$(NC)"
+	@echo "$(YELLOW)       environment:$(NC)"
+	@echo "$(YELLOW)         BACKEND_HOST: host.docker.internal$(NC)"
+	@echo "$(YELLOW)         BACKEND_PORT: \"8081\"$(NC)"
+	@echo "$(YELLOW)       extra_hosts:$(NC)"
+	@echo "$(YELLOW)         - \"host.docker.internal:host-gateway\"$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   Путь запроса: браузер → фронтенд :3001 → хост :8081 → бэкенд$(NC)"
+	@echo "$(YELLOW)   Запрос дважды пересекает сетевую границу — лишний маршрут$(NC)"
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Что делать после запуска:$(NC)"
+	@echo "$(YELLOW)   1. Открыть фронтенд: http://<IP_вашей_ВМ>:$(NET_FRONT_PORT)$(NC)"
+	@echo "$(YELLOW)   2. Убедиться, что запросы к бэкенду проходят$(NC)"
+	@echo "$(YELLOW)   3. Открыть бэкенд напрямую: http://<IP_вашей_ВМ>:8081/orders$(NC)"
+	@echo "$(YELLOW)   4. Убедиться, что бэкенд ДОСТУПЕН снаружи (это проблема)$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call check_net_containers)
+	$(call check_port,$(NET_FRONT_PORT))
+	$(call run_cmd,docker compose -f docker-compose.ports.yml up -d --build)
+	@cd $(NET_DIR) && docker compose -f docker-compose.ports.yml up -d --build
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Контейнеры запущены$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Что делать:$(NC)"
+	@echo "$(YELLOW)   1. Открыть фронтенд: http://<IP_вашей_ВМ>:$(NET_FRONT_PORT)$(NC)"
+	@echo "$(YELLOW)   2. Убедиться, что запросы к бэкенду проходят$(NC)"
+	@echo "$(YELLOW)   3. Открыть бэкенд напрямую: http://<IP_вашей_ВМ>:8081/orders$(NC)"
+	@echo "$(YELLOW)   4. Убедиться, что бэкенд ДОСТУПЕН снаружи (это проблема)$(NC)"
+	@echo "$(YELLOW)   Следующий шаг: make net-down  →  make net-network$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+
+net-network: ## Сети: контейнеры в общей сети — бэкенд закрыт снаружи
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Шаг 3 из 3: контейнеры в общей Docker-сети$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Оба контейнера в сети orders-net. Фронтенд достаёт бэкенд$(NC)"
+	@echo "$(YELLOW)по имени сервиса orders-api:8080 — внутри сети, напрямую.$(NC)"
+	@echo "$(YELLOW)Бэкенд не публикует порт — снаружи он невидим.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)docker-compose.yml:$(NC)"
+	@echo ""
+	@echo "$(MAGENTA)   networks:                         # ◄ добавлено$(NC)"
+	@echo "$(MAGENTA)     orders-net:                     # ◄ имя сети$(NC)"
+	@echo "$(MAGENTA)       driver: bridge                # ◄ тип: внутренняя сеть$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   services:$(NC)"
+	@echo "$(YELLOW)     orders-api:$(NC)"
+	@echo "$(YELLOW)       image: docker-lab/orders-api:latest$(NC)"
+	@echo "$(YELLOW)       container_name: backend-orders-api$(NC)"
+	@echo "$(YELLOW)       build:$(NC)"
+	@echo "$(YELLOW)         context: backend$(NC)"
+	@echo "$(YELLOW)       env_file: \".env\"$(NC)"
+	@echo "$(YELLOW)       # нет ports — бэкенд недоступен снаружи$(NC)"
+	@echo "$(MAGENTA)       networks:                     # ◄ добавлено$(NC)"
+	@echo "$(MAGENTA)         - orders-net                # ◄ подключён к сети$(NC)"
+	@echo ""
+	@echo "$(YELLOW)     orders-web:$(NC)"
+	@echo "$(YELLOW)       image: orders-frontend$(NC)"
+	@echo "$(YELLOW)       container_name: frontend-orders$(NC)"
+	@echo "$(YELLOW)       build:$(NC)"
+	@echo "$(YELLOW)         context: frontend$(NC)"
+	@echo "$(YELLOW)       ports:$(NC)"
+	@echo "$(YELLOW)         - \"3001:3000\"$(NC)"
+	@echo "$(YELLOW)       environment:$(NC)"
+	@echo "$(MAGENTA)         BACKEND_HOST: orders-api    # ◄ изменено: имя сервиса$(NC)"
+	@echo "$(MAGENTA)         BACKEND_PORT: \"8080\"        # ◄ изменено: внутренний порт$(NC)"
+	@echo "$(YELLOW)       # нет extra_hosts — хост больше не нужен$(NC)"
+	@echo "$(MAGENTA)       networks:                     # ◄ добавлено$(NC)"
+	@echo "$(MAGENTA)         - orders-net                # ◄ та же сеть, что у бэкенда$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   Docker DNS: в сети orders-net имя сервиса = DNS-имя$(NC)"
+	@echo "$(YELLOW)   orders-api резолвится в IP контейнера автоматически$(NC)"
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Что делать после запуска:$(NC)"
+	@echo "$(YELLOW)   1. Открыть фронтенд: http://<IP_вашей_ВМ>:$(NET_FRONT_PORT)$(NC)"
+	@echo "$(YELLOW)   2. Убедиться, что запросы к бэкенду проходят$(NC)"
+	@echo "$(YELLOW)   3. Убедиться, что бэкенд НЕ открывается: http://<IP>:8081$(NC)"
+	@echo "$(YELLOW)   4. Изучить сеть командами ниже$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call check_net_containers)
+	$(call check_port,$(NET_FRONT_PORT))
+	$(call run_cmd,docker compose -f docker-compose.network.yml up -d --build)
+	@cd $(NET_DIR) && docker compose -f docker-compose.network.yml up -d --build
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Сети Docker:$(NC)"
+	@echo ""
+	$(call run_cmd,docker network ls)
+	@docker network ls
+	@echo ""
+	$(call run_cmd,docker network inspect $(NET_NAME))
+	@docker network inspect $(NET_NAME) 2>/dev/null | python3 -m json.tool 2>/dev/null || docker network inspect $(NET_NAME)
+	@echo ""
+	@echo "$(YELLOW)Поле \"Containers\" — контейнеры в сети и их IP$(NC)"
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Контейнеры запущены$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Что делать:$(NC)"
+	@echo "$(YELLOW)   1. Открыть фронтенд: http://<IP_вашей_ВМ>:$(NET_FRONT_PORT)$(NC)"
+	@echo "$(YELLOW)   2. Убедиться, что запросы к бэкенду проходят$(NC)"
+	@echo "$(YELLOW)   3. Убедиться, что бэкенд НЕ открывается: http://<IP>:8081$(NC)"
+	@echo "$(YELLOW)   4. Изучить: docker network inspect $(NET_NAME)$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+
+net-down: ## Остановить пример с сетями
+	@echo "$(YELLOW)Останавливаем пример с сетями...$(NC)"
+	@echo ""
+	@NET_ABS=$(CURDIR)/$(NET_DIR); \
+	ACTIVE=""; \
+	for f in docker-compose.no-network.yml docker-compose.ports.yml docker-compose.network.yml; do \
+		if docker compose -f $$NET_ABS/$$f ps -q 2>/dev/null | grep -q .; then \
+			ACTIVE=$$f; \
+			break; \
+		fi; \
+	done; \
+	if [ -n "$$ACTIVE" ]; then \
+		echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+		echo "$(BOLD)$(GREEN)  ▶  docker compose -f $$ACTIVE down$(NC)"; \
+		echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+		cd $$NET_ABS && docker compose -f $$ACTIVE down; \
+	elif docker ps -q --filter name=$(NET_BACK_CONT) | grep -q . || docker ps -q --filter name=$(NET_FRONT_CONT) | grep -q .; then \
+		echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+		echo "$(BOLD)$(GREEN)  ▶  docker stop $(NET_BACK_CONT) $(NET_FRONT_CONT)$(NC)"; \
+		echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+		docker stop $(NET_BACK_CONT) $(NET_FRONT_CONT) 2>/dev/null || true; \
+	else \
+		echo "$(YELLOW)   Контейнеры не запущены$(NC)"; \
+	fi
+
+## ═══════════════════════════════════════════════════════════════
 ## Справка
 ## ═══════════════════════════════════════════════════════════════
 
@@ -308,7 +778,7 @@ help: ## Показать список команд
 	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / \
-		{printf "  $(YELLOW)%-12s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+		{printf "  $(YELLOW)%-20s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
 	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
 	@echo "$(YELLOW)Типовой порядок работы:$(NC)"
@@ -324,6 +794,18 @@ help: ## Показать список команд
 	@echo "$(YELLOW)   make logs           Показать логи контейнера$(NC)"
 	@echo "$(YELLOW)   make monitor        Обследовать контейнер$(NC)"
 	@echo "$(YELLOW)   make compose-down   Остановить и удалить контейнеры$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   Этап 3: Монтирование$(NC)"
+	@echo "$(YELLOW)   make example-no-mount   Пример без маунта (данные пропадают)$(NC)"
+	@echo "$(YELLOW)   make example-mount      Пример с bind mount$(NC)"
+	@echo "$(YELLOW)   make example-volume     Пример с volume$(NC)"
+	@echo "$(YELLOW)   make example-down       Остановить пример$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   Этап 4: Сети$(NC)"
+	@echo "$(YELLOW)   make net-no-network     Фронт и бэк без сети — бэкенд недоступен$(NC)"
+	@echo "$(YELLOW)   make net-ports          Общение через проброшенный порт$(NC)"
+	@echo "$(YELLOW)   make net-network        Контейнеры в общей Docker-сети$(NC)"
+	@echo "$(YELLOW)   make net-down           Остановить пример$(NC)"
 	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
 	@echo "$(YELLOW)Легенда:$(NC)"
 	@echo "$(YELLOW)   этот текст                    — инструкции и подсказки$(NC)"

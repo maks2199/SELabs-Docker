@@ -1,4 +1,5 @@
-version: "3.8"
+name: step_3_mount
+
 services:
   app:
     image: mount-example:latest

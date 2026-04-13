@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Load config.json
   const configResp = await fetch("/config.json");
   const config = await configResp.json();
-  url = `http://${config.host}:${config.port}`;
+  url = `http://${window.location.hostname}:${config.port}`;
 
   const writeForm = document.getElementById("write-form");
   const refreshBtn = document.getElementById("refresh-btn");

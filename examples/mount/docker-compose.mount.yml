@@ -9,7 +9,3 @@ services:
       - "3001:3000"
     volumes:
       - ./data:/app/data
-      # - my-volume:/app/data
-
-volumes:
-  my-volume:

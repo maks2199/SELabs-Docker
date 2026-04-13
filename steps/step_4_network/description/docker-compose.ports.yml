@@ -1,23 +1,14 @@
 name: step_4_network
 
-networks:
-  orders-net:
-    driver: bridge
-
 services:
   orders-api:
     image: docker-lab/orders-api:latest
     container_name: backend-orders-api
     build:
       context: backend
-    # ports:
-    #   - "8081:8080"
-    environment:
-      SOME_ENV_VAR: "some value"
-      DEBUG: true
+    ports:
+      - "8081:8080"
     env_file: ".env"
-    networks:
-      - orders-net
 
   orders-web:
     image: orders-frontend
@@ -27,7 +18,7 @@ services:
     ports:
       - "3001:3000"
     environment:
-      BACKEND_HOST: orders-api
-      # BACKEND_PORT: 8080
-    networks:
-      - orders-net
+      BACKEND_HOST: host.docker.internal
+      BACKEND_PORT: "8081"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

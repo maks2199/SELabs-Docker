@@ -1,3 +1,5 @@
+name: step_2_control
+
 services:
   orders-api:
     image: docker-lab/orders-api:latest
