@@ -914,10 +914,69 @@ fix-stage1: ## Разбор сценария по теме 1
 	@echo "$(YELLOW)Готово.$(NC)"
 
 break-stage2: ## Тренировочный сценарий по теме 2 (Управление)
-	@echo "$(RED)Цель ещё не реализована — см. Task 3$(NC)" && exit 1
+	$(call chaos_cleanup)
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BOLD)$(YELLOW)Тренировочный сценарий — тема 2$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Поднимаю стек через docker compose. Что-то пошло не так.$(NC)"
+	@echo "$(YELLOW)Ваша задача — найти причину.$(NC)"
+	@echo ""
+	$(call run_cmd,docker compose -f $(CHAOS_DIR)/stage2/docker-compose.broken.yml up -d --build)
+	@cd $(CHAOS_DIR)/stage2 && docker compose -f docker-compose.broken.yml up -d --build
+	@sleep 5
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Состояние сейчас:$(NC)"
+	@echo ""
+	$(call run_cmd,docker ps -a --filter name=backend-orders-api)
+	@docker ps -a --filter name=backend-orders-api
+	@echo ""
+	$(call chaos_checklist)
 
 fix-stage2: ## Разбор сценария по теме 2
-	@echo "$(RED)Цель ещё не реализована — см. Task 3$(NC)" && exit 1
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BOLD)$(YELLOW)Разбор сценария — тема 2: Управление$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Что сломано (фрагмент docker-compose.broken.yml):$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   services:$(NC)"
+	@echo "$(YELLOW)     orders-api:$(NC)"
+	@echo "$(YELLOW)       # ...$(NC)"
+	@echo "$(YELLOW)       environment:$(NC)"
+	@echo "$(MAGENTA)         DB_PATH: /forbidden/orders.db    # ◄ путь в несуществующую директорию$(NC)"
+	@echo "$(YELLOW)       env_file: \".env\"$(NC)"
+	@echo "$(MAGENTA)       command: sh -c \"python -c '...' && gunicorn ...\" # ◄ проверяет DB при старте$(NC)"
+	@echo "$(MAGENTA)       restart: unless-stopped              # ◄ делает краш зацикленным$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Корневая причина:$(NC)"
+	@echo "$(YELLOW)   Приложение читает DB_PATH и пытается открыть SQLite$(NC)"
+	@echo "$(YELLOW)   по этому пути. Директории /forbidden в образе нет —$(NC)"
+	@echo "$(YELLOW)   sqlite3.connect кидает OperationalError. Воркер падает,$(NC)"
+	@echo "$(YELLOW)   контейнер выходит, compose перезапускает — цикл.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Проявления по чеклисту:$(NC)"
+	@echo "$(YELLOW)   1. ps -a    → Restarting (1) / Up Less than a second$(NC)"
+	@echo "$(YELLOW)   2. logs     → sqlite3.OperationalError: unable to open database file$(NC)"
+	@echo "$(YELLOW)   3. inspect  → Config.Env: DB_PATH=/forbidden/orders.db$(NC)"
+	@echo "$(YELLOW)              → HostConfig.RestartPolicy: unless-stopped$(NC)"
+	@echo "$(YELLOW)   4. exec     → printenv | grep DB_PATH — видим значение$(NC)"
+	@echo "$(YELLOW)              → ls /forbidden — директории нет$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Лечение: убрать DB_PATH из environment (используется дефолт),$(NC)"
+	@echo "$(YELLOW)         либо указать путь внутри существующей директории,$(NC)"
+	@echo "$(YELLOW)         например DB_PATH=/app/data/orders.db$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Детали — chaos/stage2/README.md$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Убираю за собой...$(NC)"
+	@cd $(CHAOS_DIR)/stage2 && docker compose -f docker-compose.broken.yml down 2>/dev/null || true
+	@echo "$(YELLOW)Готово.$(NC)"
 
 break-stage3: ## Тренировочный сценарий по теме 3 (Монтирование)
 	@echo "$(RED)Цель ещё не реализована — см. Task 4$(NC)" && exit 1

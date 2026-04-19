@@ -1,0 +1,17 @@
+name: chaos-stage2
+
+services:
+  orders-api:
+    image: docker-lab/orders-api:latest
+    container_name: backend-orders-api
+    build:
+      context: ../../steps/step_1_build/description/backend
+    ports:
+      - "8081:8080"
+    environment:
+      DB_PATH: /forbidden/orders.db
+    env_file: ".env"
+    command: >
+      sh -c "python -c 'import os, sqlite3; sqlite3.connect(os.environ[\"DB_PATH\"])' &&
+             gunicorn -b 0.0.0.0:8080 app:app"
+    restart: unless-stopped
