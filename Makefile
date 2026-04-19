@@ -987,10 +987,74 @@ fix-stage2: ## Разбор сценария по теме 2
 	@echo "$(YELLOW)Готово.$(NC)"
 
 break-stage3: ## Тренировочный сценарий по теме 3 (Монтирование)
-	@echo "$(RED)Цель ещё не реализована — см. Task 4$(NC)" && exit 1
+	$(call chaos_cleanup)
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BOLD)$(YELLOW)Тренировочный сценарий — тема 3$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Поднимаю mount-example с volume. Что-то пошло не так.$(NC)"
+	@echo "$(YELLOW)Ваша задача — найти причину.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Порядок наблюдения:$(NC)"
+	@echo "$(YELLOW)   1. Откройте http://<IP_вашей_ВМ>:3001$(NC)"
+	@echo "$(YELLOW)   2. Создайте несколько файлов через UI$(NC)"
+	@echo "$(YELLOW)   3. Выполните: docker compose -f $(CHAOS_DIR)/stage3/docker-compose.broken.yml down$(NC)"
+	@echo "$(YELLOW)   4. Снова запустите: make break-stage3$(NC)"
+	@echo "$(YELLOW)   5. Убедитесь: файлов в UI нет. Почему?$(NC)"
+	@echo ""
+	$(call run_cmd,docker compose -f $(CHAOS_DIR)/stage3/docker-compose.broken.yml up -d --build)
+	@cd $(CHAOS_DIR)/stage3 && docker compose -f docker-compose.broken.yml up -d --build
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Состояние сейчас:$(NC)"
+	@echo ""
+	$(call run_cmd,docker ps --filter name=mount-example)
+	@docker ps --filter name=mount-example
+	@echo ""
+	$(call chaos_checklist)
 
 fix-stage3: ## Разбор сценария по теме 3
-	@echo "$(RED)Цель ещё не реализована — см. Task 4$(NC)" && exit 1
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BOLD)$(YELLOW)Разбор сценария — тема 3: Монтирование$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Что сломано (фрагмент docker-compose.broken.yml):$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   services:$(NC)"
+	@echo "$(YELLOW)     app:$(NC)"
+	@echo "$(YELLOW)       # ...$(NC)"
+	@echo "$(YELLOW)       volumes:$(NC)"
+	@echo "$(MAGENTA)         - ./data:/wrong/path         # ◄ должно быть /app/data$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Корневая причина:$(NC)"
+	@echo "$(YELLOW)   Приложение пишет файлы в /app/data (см. server.js,$(NC)"
+	@echo "$(YELLOW)   dataDir = path.join(__dirname, 'data')). Mount$(NC)"
+	@echo "$(YELLOW)   примонтирован мимо — в /wrong/path. Файлы, которые$(NC)"
+	@echo "$(YELLOW)   создаёт приложение, живут в эфемерном слое$(NC)"
+	@echo "$(YELLOW)   контейнера и пропадают при compose down.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Проявления по чеклисту:$(NC)"
+	@echo "$(YELLOW)   1. ps       → Up, всё выглядит нормально$(NC)"
+	@echo "$(YELLOW)   2. logs     → без ошибок$(NC)"
+	@echo "$(YELLOW)   3. inspect  → Mounts[].Destination = \"/wrong/path\"$(NC)"
+	@echo "$(YELLOW)   4. exec:$(NC)"
+	@echo "$(YELLOW)              docker exec mount-example ls /app/data$(NC)"
+	@echo "$(YELLOW)              → файлы, созданные через UI$(NC)"
+	@echo "$(YELLOW)              docker exec mount-example ls /wrong/path$(NC)"
+	@echo "$(YELLOW)              → пусто$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Лечение: заменить цель mount на /app/data.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Детали — chaos/stage3/README.md$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Убираю за собой...$(NC)"
+	@cd $(CHAOS_DIR)/stage3 && docker compose -f docker-compose.broken.yml down 2>/dev/null || true
+	@rm -rf $(CHAOS_DIR)/stage3/data 2>/dev/null || true
+	@echo "$(YELLOW)Готово.$(NC)"
 
 break-stage4: ## Тренировочный сценарий по теме 4 (Сети)
 	@echo "$(RED)Цель ещё не реализована — см. Task 5$(NC)" && exit 1
