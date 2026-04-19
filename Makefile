@@ -848,10 +848,70 @@ chaos-list: ## Список тренировочных сценариев
 
 # Заглушки целей — наполнятся в последующих Task (чтобы help уже показывал список)
 break-stage1: ## Тренировочный сценарий по теме 1 (Сборка)
-	@echo "$(RED)Цель ещё не реализована — см. Task 2$(NC)" && exit 1
+	$(call chaos_cleanup)
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BOLD)$(YELLOW)Тренировочный сценарий — тема 1$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Запускаю приложение. Что-то пошло не так.$(NC)"
+	@echo "$(YELLOW)Ваша задача — найти причину.$(NC)"
+	@echo ""
+	$(call run_cmd,docker build -t $(CHAOS_STAGE1_IMG) -f $(CHAOS_DIR)/stage1/Dockerfile.broken $(BACKEND_DIR))
+	@docker build -t $(CHAOS_STAGE1_IMG) -f $(CHAOS_DIR)/stage1/Dockerfile.broken $(BACKEND_DIR)
+	@echo ""
+	$(call run_cmd,docker run -d --name $(CHAOS_STAGE1_CONT) $(CHAOS_STAGE1_IMG))
+	@docker run -d --name $(CHAOS_STAGE1_CONT) $(CHAOS_STAGE1_IMG) > /dev/null
+	@sleep 2
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Состояние сейчас:$(NC)"
+	@echo ""
+	$(call run_cmd,docker ps -a --filter name=$(CHAOS_STAGE1_CONT))
+	@docker ps -a --filter name=$(CHAOS_STAGE1_CONT)
+	@echo ""
+	$(call chaos_checklist)
 
 fix-stage1: ## Разбор сценария по теме 1
-	@echo "$(RED)Цель ещё не реализована — см. Task 2$(NC)" && exit 1
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BOLD)$(YELLOW)Разбор сценария — тема 1: Сборка$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Что сломано (diff против рабочего Dockerfile):$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   FROM python:3.11$(NC)"
+	@echo "$(YELLOW)   WORKDIR /app$(NC)"
+	@echo "$(YELLOW)   COPY app/requirements.txt .$(NC)"
+	@echo "$(YELLOW)   RUN pip install -r requirements.txt$(NC)"
+	@echo "$(YELLOW)   COPY app /app$(NC)"
+	@echo "$(MAGENTA)   WORKDIR /srv                        # ◄ лишняя строка$(NC)"
+	@echo "$(YELLOW)   CMD [\"gunicorn\", \"-b\", \"0.0.0.0:8080\", \"app:app\"]$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Корневая причина:$(NC)"
+	@echo "$(YELLOW)   WORKDIR задаёт не только «куда копировать», но и cwd$(NC)"
+	@echo "$(YELLOW)   для CMD. Вторая WORKDIR перед CMD увела рабочую$(NC)"
+	@echo "$(YELLOW)   директорию в пустой /srv. Gunicorn стартует оттуда,$(NC)"
+	@echo "$(YELLOW)   ищет модуль app, не находит, падает с exit code 3.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Проявления по чеклисту:$(NC)"
+	@echo "$(YELLOW)   1. ps -a    → Exited (3) через секунду после старта$(NC)"
+	@echo "$(YELLOW)   2. logs     → ModuleNotFoundError: No module named 'app'$(NC)"
+	@echo "$(YELLOW)   3. inspect  → Config.WorkingDir = \"/srv\" (вместо /app)$(NC)"
+	@echo "$(YELLOW)   4. exec     → недоступно, контейнер уже мёртв$(NC)"
+	@echo "$(YELLOW)              но можно: docker run --rm -it --entrypoint sh <image>$(NC)"
+	@echo "$(YELLOW)              → pwd покажет /srv, ls — пусто, ls /app — код$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Лечение: убрать строку WORKDIR /srv из Dockerfile.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Детали — chaos/stage1/README.md$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Убираю за собой...$(NC)"
+	@docker rm -f $(CHAOS_STAGE1_CONT) 2>/dev/null || true
+	@docker rmi $(CHAOS_STAGE1_IMG) 2>/dev/null || true
+	@echo "$(YELLOW)Готово.$(NC)"
 
 break-stage2: ## Тренировочный сценарий по теме 2 (Управление)
 	@echo "$(RED)Цель ещё не реализована — см. Task 3$(NC)" && exit 1
