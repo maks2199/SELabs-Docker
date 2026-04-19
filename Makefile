@@ -11,7 +11,7 @@
 #
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: build status run run-more clean compose-up compose-down logs monitor example-no-mount example-mount example-volume example-down net-no-network net-ports net-network net-down help
+.PHONY: build status run run-more clean compose-up compose-down logs monitor example-no-mount example-mount example-volume example-down net-no-network net-ports net-network net-down break-stage1 fix-stage1 break-stage2 fix-stage2 break-stage3 fix-stage3 break-stage4 fix-stage4 chaos-list help
 .DEFAULT_GOAL := help
 
 IMAGE_NAME  := docker-lab/orders-api
@@ -31,6 +31,13 @@ NET_FRONT_PORT := 3001
 NET_BACK_CONT  := backend-orders-api
 NET_FRONT_CONT := frontend-orders
 NET_NAME       := orders-net
+CHAOS_DIR            := chaos
+CHAOS_STAGE1_IMG     := docker-lab/orders-api-broken:latest
+CHAOS_STAGE1_CONT    := chaos-stage1
+CHAOS_BACKEND_DIR    := steps/step_1_build/description/backend
+CHAOS_MOUNT_SRC      := steps/step_3_mount/description/mount
+CHAOS_NET_BACKEND    := steps/step_4_network/description/backend
+CHAOS_NET_FRONTEND   := steps/step_4_network/description/frontend
 
 GREEN   := $(shell printf '\033[0;32m')
 YELLOW  := $(shell printf '\033[0;33m')
@@ -88,6 +95,54 @@ define check_net_containers
 			exit 1; \
 		fi; \
 	done
+endef
+
+# Сброс любых ранее запущенных демо-стендов и chaos-сценариев
+define chaos_cleanup
+	@echo "$(YELLOW)Сброс предыдущих демо-стендов...$(NC)"
+	@docker rm -f $(CHAOS_STAGE1_CONT) 2>/dev/null || true
+	@cd $(COMPOSE_DIR) && docker compose down 2>/dev/null || true
+	@for f in docker-compose.no-mount.yml docker-compose.mount.yml docker-compose.volume.yml; do \
+	  (cd $(EXAMPLE_MOUNT_DIR) && docker compose -f $$f down 2>/dev/null) || true; \
+	done
+	@for f in docker-compose.no-network.yml docker-compose.ports.yml docker-compose.network.yml; do \
+	  (cd $(NET_DIR) && docker compose -f $$f down 2>/dev/null) || true; \
+	done
+	@for n in 1 2 3 4; do \
+	  if [ -f $(CURDIR)/$(CHAOS_DIR)/stage$$n/docker-compose.broken.yml ]; then \
+	    (cd $(CURDIR)/$(CHAOS_DIR)/stage$$n && docker compose -f docker-compose.broken.yml down 2>/dev/null) || true; \
+	  fi; \
+	done
+	@echo ""
+endef
+
+# Универсальный чеклист диагностики — печатается одинаково во всех break-сценариях
+define chaos_checklist
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BOLD)$(YELLOW)Чеклист диагностики — проходим по порядку$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)1. Статус контейнера     →  docker ps -a$(NC)"
+	@echo "$(YELLOW)      Up / Exited / Restarting / Created?$(NC)"
+	@echo "$(YELLOW)      Какой exit code?$(NC)"
+	@echo ""
+	@echo "$(YELLOW)2. Логи приложения       →  docker logs <container>$(NC)"
+	@echo "$(YELLOW)      Что говорит сам процесс внутри?$(NC)"
+	@echo "$(YELLOW)      Есть ли стек-трейс, ошибка подключения, 'file not found'?$(NC)"
+	@echo ""
+	@echo "$(YELLOW)3. Конфигурация запуска  →  docker inspect <container>$(NC)"
+	@echo "$(YELLOW)      Секции: Env, Cmd, Entrypoint, Mounts, NetworkSettings$(NC)"
+	@echo "$(YELLOW)      С чем именно запустился контейнер?$(NC)"
+	@echo ""
+	@echo "$(YELLOW)4. Вид изнутри           →  docker exec <container> sh -c '...'$(NC)"
+	@echo "$(YELLOW)      ls /app, printenv, curl localhost:8080$(NC)"
+	@echo "$(YELLOW)      Совпадает ли файловая система / переменные с ожиданием?$(NC)"
+	@echo ""
+	@echo "$(YELLOW)5. Сравнить с ожиданием$(NC)"
+	@echo "$(YELLOW)      Конфиг ↔ код приложения ↔ docker-compose.yml$(NC)"
+	@echo "$(YELLOW)      Где расхождение?$(NC)"
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
 endef
 
 ## ═══════════════════════════════════════════════════════════════
@@ -769,6 +824,54 @@ net-down: ## Остановить пример с сетями
 	fi
 
 ## ═══════════════════════════════════════════════════════════════
+## Сценарии для траблшутинга
+## ═══════════════════════════════════════════════════════════════
+
+chaos-list: ## Список тренировочных сценариев
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Тренировочные сценарии — по одному на тему$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)  make break-stage1     Сценарий по теме 1 (Сборка)$(NC)"
+	@echo "$(YELLOW)  make break-stage2     Сценарий по теме 2 (Управление)$(NC)"
+	@echo "$(YELLOW)  make break-stage3     Сценарий по теме 3 (Монтирование)$(NC)"
+	@echo "$(YELLOW)  make break-stage4     Сценарий по теме 4 (Сети)$(NC)"
+	@echo ""
+	@echo "$(YELLOW)  make fix-stage<N>     Разбор сценария N и очистка$(NC)"
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Как работать:$(NC)"
+	@echo "$(YELLOW)   1. make break-stageN — контейнер запущен, студенты диагностируют$(NC)"
+	@echo "$(YELLOW)   2. Работаем по чеклисту (печатается при break)$(NC)"
+	@echo "$(YELLOW)   3. make fix-stageN — разбор + очистка$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+
+# Заглушки целей — наполнятся в последующих Task (чтобы help уже показывал список)
+break-stage1: ## Тренировочный сценарий по теме 1 (Сборка)
+	@echo "$(RED)Цель ещё не реализована — см. Task 2$(NC)" && exit 1
+
+fix-stage1: ## Разбор сценария по теме 1
+	@echo "$(RED)Цель ещё не реализована — см. Task 2$(NC)" && exit 1
+
+break-stage2: ## Тренировочный сценарий по теме 2 (Управление)
+	@echo "$(RED)Цель ещё не реализована — см. Task 3$(NC)" && exit 1
+
+fix-stage2: ## Разбор сценария по теме 2
+	@echo "$(RED)Цель ещё не реализована — см. Task 3$(NC)" && exit 1
+
+break-stage3: ## Тренировочный сценарий по теме 3 (Монтирование)
+	@echo "$(RED)Цель ещё не реализована — см. Task 4$(NC)" && exit 1
+
+fix-stage3: ## Разбор сценария по теме 3
+	@echo "$(RED)Цель ещё не реализована — см. Task 4$(NC)" && exit 1
+
+break-stage4: ## Тренировочный сценарий по теме 4 (Сети)
+	@echo "$(RED)Цель ещё не реализована — см. Task 5$(NC)" && exit 1
+
+fix-stage4: ## Разбор сценария по теме 4
+	@echo "$(RED)Цель ещё не реализована — см. Task 5$(NC)" && exit 1
+
+## ═══════════════════════════════════════════════════════════════
 ## Справка
 ## ═══════════════════════════════════════════════════════════════
 
@@ -777,7 +880,7 @@ help: ## Показать список команд
 	@echo "$(YELLOW)  Docker Lab — Пульт управления$(NC)"
 	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
 	@echo ""
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / \
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / \
 		{printf "  $(YELLOW)%-20s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
 	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
