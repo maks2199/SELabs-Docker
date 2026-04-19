@@ -52,7 +52,23 @@ compose-up: ## Собрать и запустить контейнер
 	@echo ""
 	@if [ ! -f docker-compose.yml ]; then \
 		echo "$(RED)Файл docker-compose.yml не найден!$(NC)"; \
-		echo "$(YELLOW)Сначала создайте docker-compose.yml в этой директории$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)Создайте файл docker-compose.yml в этой директории.$(NC)"; \
+		echo "$(YELLOW)Минимальная структура:$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)   services:$(NC)"; \
+		echo "$(YELLOW)     orders-api:$(NC)"; \
+		echo "$(YELLOW)       image: docker-lab/orders-api:latest$(NC)"; \
+		echo "$(YELLOW)       container_name: $(CONTAINER)$(NC)"; \
+		echo "$(YELLOW)       build:$(NC)"; \
+		echo "$(YELLOW)         context: ./backend$(NC)"; \
+		echo "$(YELLOW)       ports:$(NC)"; \
+		echo "$(YELLOW)         - \"8081:8080\"$(NC)"; \
+		echo "$(YELLOW)       volumes:$(NC)"; \
+		echo "$(YELLOW)         - appdata:/data/orders.db$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)   volumes:$(NC)"; \
+		echo "$(YELLOW)     appdata:$(NC)"; \
 		exit 1; \
 	fi
 	$(call run_cmd,docker compose up -d --build)
