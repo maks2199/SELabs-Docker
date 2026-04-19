@@ -31,13 +31,13 @@ NET_FRONT_PORT := 3001
 NET_BACK_CONT  := backend-orders-api
 NET_FRONT_CONT := frontend-orders
 NET_NAME       := orders-net
-CHAOS_DIR            := chaos
-CHAOS_STAGE1_IMG     := docker-lab/orders-api-broken:latest
-CHAOS_STAGE1_CONT    := chaos-stage1
-CHAOS_BACKEND_DIR    := steps/step_1_build/description/backend
-CHAOS_MOUNT_SRC      := steps/step_3_mount/description/mount
-CHAOS_NET_BACKEND    := steps/step_4_network/description/backend
-CHAOS_NET_FRONTEND   := steps/step_4_network/description/frontend
+
+CHAOS_DIR          := chaos
+CHAOS_STAGE1_IMG   := docker-lab/orders-api-broken:latest
+CHAOS_STAGE1_CONT  := chaos-stage1
+CHAOS_MOUNT_SRC    := steps/step_3_mount/description/mount
+CHAOS_NET_BACKEND  := steps/step_4_network/description/backend
+CHAOS_NET_FRONTEND := steps/step_4_network/description/frontend
 
 GREEN   := $(shell printf '\033[0;32m')
 YELLOW  := $(shell printf '\033[0;33m')
