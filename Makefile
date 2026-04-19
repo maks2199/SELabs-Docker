@@ -1057,10 +1057,72 @@ fix-stage3: ## Разбор сценария по теме 3
 	@echo "$(YELLOW)Готово.$(NC)"
 
 break-stage4: ## Тренировочный сценарий по теме 4 (Сети)
-	@echo "$(RED)Цель ещё не реализована — см. Task 5$(NC)" && exit 1
+	$(call chaos_cleanup)
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BOLD)$(YELLOW)Тренировочный сценарий — тема 4$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Поднимаю frontend + backend в общей сети.$(NC)"
+	@echo "$(YELLOW)Фронтенд открывается, но запросы к бэку падают.$(NC)"
+	@echo "$(YELLOW)Ваша задача — найти причину.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Как наблюдать:$(NC)"
+	@echo "$(YELLOW)   1. Откройте http://<IP_вашей_ВМ>:3001$(NC)"
+	@echo "$(YELLOW)   2. Попробуйте сделать любой запрос к бэку через UI$(NC)"
+	@echo "$(YELLOW)   3. Смотрим, что выдаёт логи фронтенда$(NC)"
+	@echo ""
+	$(call run_cmd,docker compose -f $(CHAOS_DIR)/stage4/docker-compose.broken.yml up -d --build)
+	@cd $(CHAOS_DIR)/stage4 && docker compose -f docker-compose.broken.yml up -d --build
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Состояние сейчас:$(NC)"
+	@echo ""
+	$(call run_cmd,docker ps --filter name=backend-orders-api --filter name=frontend-orders)
+	@docker ps --filter name=backend-orders-api --filter name=frontend-orders
+	@echo ""
+	$(call chaos_checklist)
 
 fix-stage4: ## Разбор сценария по теме 4
-	@echo "$(RED)Цель ещё не реализована — см. Task 5$(NC)" && exit 1
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BOLD)$(YELLOW)Разбор сценария — тема 4: Сети$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Что сломано (фрагмент docker-compose.broken.yml):$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   services:$(NC)"
+	@echo "$(YELLOW)     orders-web:$(NC)"
+	@echo "$(YELLOW)       # ...$(NC)"
+	@echo "$(YELLOW)       environment:$(NC)"
+	@echo "$(MAGENTA)         BACKEND_HOST: backend         # ◄ нет такого имени в сети$(NC)"
+	@echo "$(YELLOW)         BACKEND_PORT: \"8080\"$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Корневая причина:$(NC)"
+	@echo "$(YELLOW)   Внутри docker-сети DNS резолвит имена сервисов$(NC)"
+	@echo "$(YELLOW)   compose (orders-api) и container_name$(NC)"
+	@echo "$(YELLOW)   (backend-orders-api). Произвольная строка 'backend'$(NC)"
+	@echo "$(YELLOW)   не резолвится ни во что — ENOTFOUND.$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Проявления по чеклисту:$(NC)"
+	@echo "$(YELLOW)   1. ps       → оба Up, всё выглядит нормально$(NC)"
+	@echo "$(YELLOW)   2. logs     → docker logs frontend-orders$(NC)"
+	@echo "$(YELLOW)              → Error: getaddrinfo ENOTFOUND backend$(NC)"
+	@echo "$(YELLOW)   3. inspect  → Config.Env: BACKEND_HOST=backend$(NC)"
+	@echo "$(YELLOW)   4. exec:$(NC)"
+	@echo "$(YELLOW)              docker exec frontend-orders ping -c1 orders-api → OK$(NC)"
+	@echo "$(YELLOW)              docker exec frontend-orders ping -c1 backend   → fail$(NC)"
+	@echo "$(YELLOW)              docker network inspect orders-net — участники сети$(NC)"
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Лечение: BACKEND_HOST: orders-api (имя сервиса из compose).$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Детали — chaos/stage4/README.md$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Убираю за собой...$(NC)"
+	@cd $(CHAOS_DIR)/stage4 && docker compose -f docker-compose.broken.yml down 2>/dev/null || true
+	@echo "$(YELLOW)Готово.$(NC)"
 
 ## ═══════════════════════════════════════════════════════════════
 ## Справка
