@@ -15,7 +15,7 @@
 #
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: compose-up compose-down inspect help
+.PHONY: compose-up compose-down inspect monitor status clean help
 .DEFAULT_GOAL := help
 
 FRONTEND_CONTAINER := c-frontend-orders
@@ -193,3 +193,98 @@ inspect: ## Обследовать сеть и volume
 	else \
 		echo "$(YELLOW)   Volume не найден (возможно, используется bind mount)$(NC)"; \
 	fi
+
+monitor: ## Обследовать контейнеры (inspect, exec, top, stats)
+	@docker inspect $(BACKEND_CONTAINER) > /dev/null 2>&1 || ( \
+		echo "$(RED)Контейнер $(BACKEND_CONTAINER) не найден$(NC)"; \
+		echo "$(YELLOW)Сначала выполните: make compose-up$(NC)"; \
+		exit 1 \
+	)
+	@docker inspect $(FRONTEND_CONTAINER) > /dev/null 2>&1 || ( \
+		echo "$(RED)Контейнер $(FRONTEND_CONTAINER) не найден$(NC)"; \
+		echo "$(YELLOW)Сначала выполните: make compose-up$(NC)"; \
+		exit 1 \
+	)
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)1. Конфигурация контейнеров$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   Ищите в выводе:$(NC)"
+	@echo "$(YELLOW)   \"Env\"    — переменные окружения контейнера$(NC)"
+	@echo "$(YELLOW)   \"Cmd\"    — стартовая команда контейнера$(NC)"
+	@echo "$(YELLOW)   \"Image\"  — образ, с которым запущен контейнер$(NC)"
+	@echo "$(YELLOW)   \"Ports\"  — проброс портов$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call run_cmd,docker inspect $(FRONTEND_CONTAINER) $(BACKEND_CONTAINER))
+	@docker inspect $(FRONTEND_CONTAINER) $(BACKEND_CONTAINER)
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)2. Файлы внутри контейнеров$(NC)"
+	@echo "$(YELLOW)   WORKDIR в Dockerfile: /app$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call run_cmd,docker exec $(FRONTEND_CONTAINER) ls /app)
+	@docker exec $(FRONTEND_CONTAINER) ls /app
+	@echo ""
+	$(call run_cmd,docker exec $(BACKEND_CONTAINER) ls /app)
+	@docker exec $(BACKEND_CONTAINER) ls /app
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)3. Процессы внутри контейнеров$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call run_cmd,docker top $(FRONTEND_CONTAINER))
+	@docker top $(FRONTEND_CONTAINER)
+	@echo ""
+	$(call run_cmd,docker top $(BACKEND_CONTAINER))
+	@docker top $(BACKEND_CONTAINER)
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)4. Потребление ресурсов$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   --no-stream — показать снимок и выйти$(NC)"
+	@echo "$(YELLOW)   без флага   — интерактивная таблица (Ctrl+C выход)$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call run_cmd,docker stats --no-stream $(FRONTEND_CONTAINER) $(BACKEND_CONTAINER))
+	@docker stats --no-stream $(FRONTEND_CONTAINER) $(BACKEND_CONTAINER)
+
+status: ## Показать образы, контейнеры, вольюмы и сети
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Docker-образы:$(NC)"
+	@echo ""
+	$(call run_cmd,docker images)
+	@docker images
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Запущенные контейнеры:$(NC)"
+	@echo ""
+	$(call run_cmd,docker ps)
+	@docker ps
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Docker-вольюмы:$(NC)"
+	@echo ""
+	$(call run_cmd,docker volume ls)
+	@docker volume ls
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Docker-сети:$(NC)"
+	@echo ""
+	$(call run_cmd,docker network ls)
+	@docker network ls
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Совет: docker ps -a — показать все контейнеры (включая остановленные)$(NC)"
+
+clean: ## Остановить стек, удалить образы и вольюмы
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Полная очистка стека:$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Флаги:$(NC)"
+	@echo "$(YELLOW)   -v                — удалить объявленные в compose вольюмы$(NC)"
+	@echo "$(YELLOW)   --rmi local       — удалить образы, собранные локально (build:)$(NC)"
+	@echo "$(YELLOW)   --remove-orphans  — удалить контейнеры-сироты$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call run_cmd,docker compose down -v --rmi local --remove-orphans)
+	@docker compose down -v --rmi local --remove-orphans

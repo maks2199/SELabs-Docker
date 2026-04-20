@@ -15,7 +15,7 @@
 #
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: compose-up compose-down logs monitor help
+.PHONY: compose-up compose-down logs monitor status clean help
 .DEFAULT_GOAL := help
 
 CONTAINER_NAME := c-orders-frontend
@@ -175,6 +175,46 @@ monitor: ## Обследовать контейнер (inspect, exec, top, stats
 	@echo ""
 	$(call run_cmd,docker stats --no-stream $(CONTAINER_NAME))
 	@docker stats --no-stream $(CONTAINER_NAME)
+
+status: ## Показать образы, контейнеры, вольюмы и сети
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Docker-образы:$(NC)"
+	@echo ""
+	$(call run_cmd,docker images)
+	@docker images
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Запущенные контейнеры:$(NC)"
+	@echo ""
+	$(call run_cmd,docker ps)
+	@docker ps
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Docker-вольюмы:$(NC)"
+	@echo ""
+	$(call run_cmd,docker volume ls)
+	@docker volume ls
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Docker-сети:$(NC)"
+	@echo ""
+	$(call run_cmd,docker network ls)
+	@docker network ls
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Совет: docker ps -a — показать все контейнеры (включая остановленные)$(NC)"
+
+clean: ## Остановить стек, удалить образы и вольюмы
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Полная очистка стека:$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Флаги:$(NC)"
+	@echo "$(YELLOW)   -v                — удалить объявленные в compose вольюмы$(NC)"
+	@echo "$(YELLOW)   --rmi local       — удалить образы, собранные локально (build:)$(NC)"
+	@echo "$(YELLOW)   --remove-orphans  — удалить контейнеры-сироты$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call run_cmd,docker compose down -v --rmi local --remove-orphans)
+	@docker compose down -v --rmi local --remove-orphans
 
 ## ═══════════════════════════════════════════════════════════════
 ## Справка

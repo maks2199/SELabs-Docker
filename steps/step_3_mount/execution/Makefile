@@ -2,7 +2,7 @@
 # Этап 3: Монтирование — самостоятельная работа
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: compose-up compose-down inspect-volume help
+.PHONY: compose-up compose-down inspect-volume monitor status clean help
 .DEFAULT_GOAL := help
 
 CONTAINER := c-backend-orders-api
@@ -128,3 +128,87 @@ inspect-volume: ## Найти расположение volume в системе
 	else \
 		echo "$(YELLOW)   Volume не найден (возможно, используется bind mount)$(NC)"; \
 	fi
+
+monitor: ## Обследовать контейнер (inspect, exec, top, stats)
+	@docker inspect $(CONTAINER) > /dev/null 2>&1 || ( \
+		echo "$(RED)Контейнер $(CONTAINER) не найден$(NC)"; \
+		echo "$(YELLOW)Сначала выполните: make compose-up$(NC)"; \
+		exit 1 \
+	)
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)1. Конфигурация контейнера$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   Ищите в выводе:$(NC)"
+	@echo "$(YELLOW)   \"Env\"    — переменные окружения контейнера$(NC)"
+	@echo "$(YELLOW)   \"Cmd\"    — стартовая команда контейнера$(NC)"
+	@echo "$(YELLOW)   \"Image\"  — образ, с которым запущен контейнер$(NC)"
+	@echo "$(YELLOW)   \"Ports\"  — проброс портов$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call run_cmd,docker inspect $(CONTAINER))
+	@docker inspect $(CONTAINER)
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)2. Файлы внутри контейнера$(NC)"
+	@echo "$(YELLOW)   WORKDIR в Dockerfile: /app$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call run_cmd,docker exec $(CONTAINER) ls /app)
+	@docker exec $(CONTAINER) ls /app
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)3. Процессы внутри контейнера$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call run_cmd,docker top $(CONTAINER))
+	@docker top $(CONTAINER)
+	@echo ""
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)4. Потребление ресурсов$(NC)"
+	@echo ""
+	@echo "$(YELLOW)   --no-stream — показать снимок и выйти$(NC)"
+	@echo "$(YELLOW)   без флага   — интерактивная таблица (Ctrl+C выход)$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call run_cmd,docker stats --no-stream $(CONTAINER))
+	@docker stats --no-stream $(CONTAINER)
+
+status: ## Показать образы, контейнеры, вольюмы и сети
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Docker-образы:$(NC)"
+	@echo ""
+	$(call run_cmd,docker images)
+	@docker images
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Запущенные контейнеры:$(NC)"
+	@echo ""
+	$(call run_cmd,docker ps)
+	@docker ps
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Docker-вольюмы:$(NC)"
+	@echo ""
+	$(call run_cmd,docker volume ls)
+	@docker volume ls
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Docker-сети:$(NC)"
+	@echo ""
+	$(call run_cmd,docker network ls)
+	@docker network ls
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Совет: docker ps -a — показать все контейнеры (включая остановленные)$(NC)"
+
+clean: ## Остановить стек, удалить образы и вольюмы
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Полная очистка стека:$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Флаги:$(NC)"
+	@echo "$(YELLOW)   -v                — удалить объявленные в compose вольюмы$(NC)"
+	@echo "$(YELLOW)   --rmi local       — удалить образы, собранные локально (build:)$(NC)"
+	@echo "$(YELLOW)   --remove-orphans  — удалить контейнеры-сироты$(NC)"
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	$(call run_cmd,docker compose down -v --rmi local --remove-orphans)
+	@docker compose down -v --rmi local --remove-orphans

@@ -15,7 +15,7 @@
 #
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: build run clean help
+.PHONY: build run monitor status clean help
 .DEFAULT_GOAL := help
 
 IMAGE_NAME   := docker-lab/orders-frontend
@@ -122,6 +122,84 @@ run: ## Запустить контейнер на порту 3000
 		echo "$(YELLOW)   Неверная CMD      ->  ожидаемая команда: node server.js$(NC)"; \
 		exit 1 \
 	)
+
+monitor: ## Обследовать запущенный контейнер (inspect, exec, top, stats)
+	@CONTAINER=$$(docker ps -q --filter ancestor=$(IMAGE_NAME) | head -n 1); \
+	if [ -z "$$CONTAINER" ]; then \
+		echo "$(RED)Нет запущенных контейнеров из образа $(IMAGE_NAME)$(NC)"; \
+		echo "$(YELLOW)Сначала в другом терминале выполните: make run$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"; \
+	echo "$(YELLOW)Обследуем контейнер: $$CONTAINER$(NC)"; \
+	echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"; \
+	echo ""; \
+	echo "$(YELLOW)1. Конфигурация контейнера$(NC)"; \
+	echo ""; \
+	echo "$(YELLOW)   Ищите в выводе:$(NC)"; \
+	echo "$(YELLOW)   \"Env\"    — переменные окружения контейнера$(NC)"; \
+	echo "$(YELLOW)   \"Cmd\"    — стартовая команда контейнера$(NC)"; \
+	echo "$(YELLOW)   \"Image\"  — образ, с которым запущен контейнер$(NC)"; \
+	echo "$(YELLOW)   \"Ports\"  — проброс портов$(NC)"; \
+	echo ""; \
+	echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+	echo "$(BOLD)$(GREEN)  ▶  docker inspect $$CONTAINER$(NC)"; \
+	echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+	docker inspect $$CONTAINER; \
+	echo ""; \
+	echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"; \
+	echo "$(YELLOW)2. Файлы внутри контейнера (WORKDIR /app)$(NC)"; \
+	echo ""; \
+	echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+	echo "$(BOLD)$(GREEN)  ▶  docker exec $$CONTAINER ls /app$(NC)"; \
+	echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+	docker exec $$CONTAINER ls /app; \
+	echo ""; \
+	echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"; \
+	echo "$(YELLOW)3. Процессы внутри контейнера$(NC)"; \
+	echo ""; \
+	echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+	echo "$(BOLD)$(GREEN)  ▶  docker top $$CONTAINER$(NC)"; \
+	echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+	docker top $$CONTAINER; \
+	echo ""; \
+	echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"; \
+	echo "$(YELLOW)4. Потребление ресурсов$(NC)"; \
+	echo ""; \
+	echo "$(YELLOW)   --no-stream — показать снимок и выйти$(NC)"; \
+	echo "$(YELLOW)   без флага   — интерактивная таблица (Ctrl+C выход)$(NC)"; \
+	echo ""; \
+	echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+	echo "$(BOLD)$(GREEN)  ▶  docker stats --no-stream $$CONTAINER$(NC)"; \
+	echo "$(GREEN)────────────────────────────────────────────────────────$(NC)"; \
+	docker stats --no-stream $$CONTAINER
+
+status: ## Показать образы, контейнеры, вольюмы и сети
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Docker-образы:$(NC)"
+	@echo ""
+	$(call run_cmd,docker images)
+	@docker images
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Запущенные контейнеры:$(NC)"
+	@echo ""
+	$(call run_cmd,docker ps)
+	@docker ps
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Docker-вольюмы:$(NC)"
+	@echo ""
+	$(call run_cmd,docker volume ls)
+	@docker volume ls
+	@echo ""
+	@echo "$(YELLOW)────────────────────────────────────────────────────────$(NC)"
+	@echo "$(YELLOW)Docker-сети:$(NC)"
+	@echo ""
+	$(call run_cmd,docker network ls)
+	@docker network ls
+	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Совет: docker ps -a — показать все контейнеры (включая остановленные)$(NC)"
 
 clean: ## Удалить образ фронтенда
 	@echo "$(YELLOW)Удаляем образ $(IMAGE_NAME)...$(NC)"
