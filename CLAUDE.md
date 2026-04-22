@@ -52,7 +52,7 @@ make net-down        # stop network example
 - Listens on port **8080** inside the container
 - Built into image `docker-lab/orders-api:latest`
 
-### Frontend (`steps/step_4_network/description/frontend/`, also in `examples/mount/`)
+### Frontend (`steps/step_4_network/description/frontend/`, also in `steps/step_3_mount/description/mount/`)
 - Node.js Express app
 - Listens on port **3000** inside the container
 - Reads `BACKEND_HOST` and `BACKEND_PORT` env vars to locate the backend

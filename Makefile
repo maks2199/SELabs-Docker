@@ -22,7 +22,7 @@ COMPOSE_DIR    := steps/step_2_control/description
 CONTAINER_2    := backend-orders-api
 BACKEND_PORT_2 := 8081
 
-EXAMPLE_MOUNT_DIR  := examples/mount
+EXAMPLE_MOUNT_DIR  := steps/step_3_mount/description/mount
 EXAMPLE_MOUNT_PORT := 3001
 EXAMPLE_MOUNT_CONT := mount-example
 
