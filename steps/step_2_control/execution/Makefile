@@ -84,6 +84,7 @@ compose-up: ## Запустить контейнер через docker compose
 	@echo "$(YELLOW)             нужно если изменился Dockerfile или код$(NC)"
 	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
 	@echo "$(YELLOW)Откройте в браузере: http://localhost:$(FRONTEND_PORT)$(NC)"
+	@echo "$(YELLOW)(или http://<IP-вашей-ВМ>:$(FRONTEND_PORT), если вы работаете на виртуальной машине)$(NC)"
 	@echo ""
 	$(call run_cmd,docker compose up -d --build)
 	@docker compose up -d --build || ( \

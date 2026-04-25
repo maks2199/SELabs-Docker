@@ -109,6 +109,7 @@ run: ## Запустить контейнер на порту 3000
 	@echo "$(YELLOW)                 $(PORT) — порт внутри контейнера (server.js слушает 3000)$(NC)"
 	@echo "$(YELLOW)════════════════════════════════════════════════════════$(NC)"
 	@echo "$(YELLOW)Откройте в браузере: http://localhost:$(PORT)$(NC)"
+	@echo "$(YELLOW)(или http://<IP-вашей-ВМ>:$(PORT), если вы работаете на виртуальной машине)$(NC)"
 	@echo "$(YELLOW)Остановить: Ctrl+C$(NC)"
 	@echo ""
 	$(call run_cmd,docker run --rm -p $(PORT):$(PORT) $(IMAGE_NAME):latest)
